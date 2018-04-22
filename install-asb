@@ -1,0 +1,41 @@
+#!/bin/bash
+
+set -e
+
+
+asb_manifest="plain-templates/asb/k8s-ansible-service-broker.yaml"
+asb_ns="ansible-service-broker"
+
+base64_cmd="base64 -w 0"
+if [[ "$OSTYPE" == "darwin"* ]]; then
+	base64_cmd="base64"
+fi
+
+kubectl apply -f plain-templates/asb/namespace.yaml
+
+## Generate pki
+mkdir -p /tmp/asb-cert
+openssl req -nodes -x509 -newkey rsa:4096 -keyout /tmp/asb-cert/key.pem -out /tmp/asb-cert/cert.pem -days 365 -subj "/CN=asb.${asb_ns}.svc"
+broker_ca_cert=$(cat /tmp/asb-cert/cert.pem | ${base64_cmd})
+kubectl create secret tls asb-tls --cert="/tmp/asb-cert/cert.pem" --key="/tmp/asb-cert/key.pem" -n ${asb_ns}
+
+
+## Apply ASB Manifest
+kubectl apply -f ${asb_manifest}
+
+client_token=$(kubectl get sa ansibleservicebroker-client -n ${asb_ns} -o yaml | grep -w ansibleservicebroker-client-token | grep -o 'ansibleservicebroker-client-token.*$')
+broker_auth='{"bearer": { "secretRef": { "kind": "Secret", "namespace": "'"${asb_ns}"'", "name": "'"${client_token}"'" } } }'
+
+
+cat <<EOF > "/tmp/broker-resource.yaml"
+apiVersion: servicecatalog.k8s.io/v1beta1
+kind: ClusterServiceBroker
+metadata:
+  name: ${asb_ns}
+spec:
+  url: "https://asb.${asb_ns}.svc:1338/ansible-service-broker/"
+  authInfo: ${broker_auth}
+  caBundle: "${broker_ca_cert}"
+EOF
+
+kubectl apply -f /tmp/broker-resource.yaml -n ${asb_ns}

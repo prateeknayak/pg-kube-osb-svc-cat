@@ -1,0 +1,51 @@
+#!/bin/bash
+
+set -e
+
+
+svc_cat_manifests="plain-templates/service-catalog"
+svc_cat_ns="catalog"
+svc_cat_api="catalog-apiserver"
+
+base64_cmd="base64 -w 0"
+if [[ "$OSTYPE" == "darwin"* ]]; then
+	base64_cmd="base64"
+fi
+
+kubectl apply -f ${svc_cat_manifests}/namespace.yaml
+
+## Generate pki
+mkdir -p /tmp/svc-cat-cert
+openssl req \
+	-nodes \
+	-x509 \
+	-newkey rsa:3650 \
+	-keyout /tmp/svc-cat-cert/key.pem \
+	-out /tmp/svc-cat-cert/cert.pem \
+	-days 365 \
+	-subj "/CN=${svc_cat_api}" \
+	-reqexts SAN \
+	-config <(cat /tmp/openssl.cnf <(printf "[SAN]\nsubjectAltName=DNS:${svc_cat_api}.${svc_cat_ns},DNS:${svc_cat_api}.${svc_cat_ns}.svc"))
+
+ca_bundle=$(cat /tmp/svc-cat-cert/cert.pem | ${base64_cmd})
+kubectl create secret tls catalog-apiserver-cert --cert="/tmp/svc-cat-cert/cert.pem" --key="/tmp/svc-cat-cert/key.pem" -n ${asb_ns}
+
+
+cat <<EOF > "/tmp/apiregistration.yaml"
+apiVersion: apiregistration.k8s.io/v1beta1
+kind: APIService
+metadata:
+  name: v1beta1.servicecatalog.k8s.io
+spec:
+  group: servicecatalog.k8s.io
+  version: v1beta1
+  service:
+    namespace: ${svc_cat_ns}
+    name: ${svc_cat_api}
+  caBundle: "${ca_bundle}"
+  groupPriorityMinimum: 10000
+  versionPriority: 20
+EOF
+
+
+for template in ${svc_cat_manifests}/*; do kubectl apply -f ${template}; done
