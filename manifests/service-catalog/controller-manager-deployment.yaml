@@ -3,8 +3,9 @@ kind: Deployment
 apiVersion: extensions/v1beta1
 metadata:
   name: catalog-controller-manager
+  namespace: catalog
   labels:
-    app: catalog
+    app: catalog-controller-manager
 spec:
   replicas: 1
   selector:
@@ -13,7 +14,7 @@ spec:
   template:
     metadata:
       annotations:
-        prometheus.io/scrape: "false"
+        prometheus.io/scrape: "true"
       labels:
         app: catalog-controller-manager
     spec:

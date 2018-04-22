@@ -1,0 +1,35 @@
+#!/bin/bash
+
+minikube delete &> /dev/null
+minikube start --extra-config=apiserver.Authorization.Mode=RBAC
+
+kubectl config set-context minikube --namespace='kube-system'
+kubectl config set-credentials minikube --embed-certs=true --client-certificate=${HOME}/.minikube/client.crt --client-key=${HOME}/.minikube/client.key
+kubectl config set-cluster minikube --embed-certs=true --certificate-authority=${HOME}/.minikube/ca.crt
+
+cat <<EOF > "/tmp/cluster-admin-role.yaml"
+apiVersion: rbac.authorization.k8s.io/v1
+kind: ClusterRole
+metadata:
+  annotations:
+    rbac.authorization.kubernetes.io/autoupdate: "true"
+  labels:
+    kubernetes.io/bootstrapping: rbac-defaults
+  name: cluster-admin
+rules:
+- apiGroups:
+  - '*'
+  resources:
+  - '*'
+  verbs:
+  - '*'
+- nonResourceURLs:
+  - '*'
+  verbs:
+  - '*'
+EOF
+
+kubectl apply -f /tmp/cluster-admin-role.yaml
+kubectl create clusterrolebinding kube-system-cluster-admin --clusterrole=cluster-admin --serviceaccount=kube-system:default
+
+while kubectl get po --no-headers | grep -v unning; do sleep 1; done

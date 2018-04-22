@@ -3,7 +3,7 @@
 set -e
 
 
-svc_cat_manifests="plain-templates/service-catalog"
+svc_cat_manifests="manifests/service-catalog"
 svc_cat_ns="catalog"
 svc_cat_api="catalog-apiserver"
 
@@ -25,10 +25,10 @@ openssl req \
 	-days 365 \
 	-subj "/CN=${svc_cat_api}" \
 	-reqexts SAN \
-	-config <(cat /tmp/openssl.cnf <(printf "[SAN]\nsubjectAltName=DNS:${svc_cat_api}.${svc_cat_ns},DNS:${svc_cat_api}.${svc_cat_ns}.svc"))
+	-config <(cat /etc/ssl/openssl.cnf <(printf "[SAN]\nsubjectAltName=DNS:${svc_cat_api}.${svc_cat_ns},DNS:${svc_cat_api}.${svc_cat_ns}.svc"))
 
 ca_bundle=$(cat /tmp/svc-cat-cert/cert.pem | ${base64_cmd})
-kubectl create secret tls catalog-apiserver-cert --cert="/tmp/svc-cat-cert/cert.pem" --key="/tmp/svc-cat-cert/key.pem" -n ${asb_ns}
+kubectl create secret tls catalog-apiserver-cert --cert="/tmp/svc-cat-cert/cert.pem" --key="/tmp/svc-cat-cert/key.pem" -n ${svc_cat_ns}
 
 
 cat <<EOF > "/tmp/apiregistration.yaml"

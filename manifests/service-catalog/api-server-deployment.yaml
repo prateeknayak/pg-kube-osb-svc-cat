@@ -3,6 +3,7 @@ kind: Deployment
 apiVersion: extensions/v1beta1
 metadata:
   name: catalog-apiserver
+  namespace: catalog
   labels:
     app: catalog-apiserver
 spec:
