@@ -41,7 +41,7 @@ spec:
         - "8444"
         - "--leader-elect=false"
         - -v
-        - "10"
+        - "4"
         - --resync-interval
         - 5m
         - --broker-relist-interval
