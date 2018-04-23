@@ -1,0 +1,78 @@
+---
+apiVersion: rbac.authorization.k8s.io/v1beta1
+kind: ClusterRole
+metadata:
+  name: asb-auth
+rules:
+- apiGroups: [""]
+  resources: ["namespaces"]
+  verbs: ["create", "delete"]
+- apiGroups: ["authorization.openshift.io"]
+  resources: ["subjectrulesreview"]
+  verbs: ["create"]
+- apiGroups: ["authorization.k8s.io"]
+  resources: ["subjectaccessreviews"]
+  verbs: ["create"]
+- apiGroups: ["authentication.k8s.io"]
+  resources: ["tokenreviews"]
+  verbs: ["create"]
+- apiGroups: ["networking.k8s.io", ""]
+  attributeRestrictions: null
+  resources: ["networkpolicies"]
+  verbs: ["create", "delete"]
+- apiGroups: ["automationbroker.io"]
+  attributeRestrictions: null
+  resources: ["bundles", "jobstates", "servicebindings", "serviceinstances"]
+  verbs: ["*"]
+
+---
+apiVersion: rbac.authorization.k8s.io/v1beta1
+kind: ClusterRoleBinding
+metadata:
+  name: asb-auth-bind
+subjects:
+- kind: ServiceAccount
+  name: asb
+  namespace: broker
+roleRef:
+  kind: ClusterRole
+  name: asb-auth
+  apiGroup: rbac.authorization.k8s.io
+
+---
+apiVersion: rbac.authorization.k8s.io/v1beta1
+kind: ClusterRoleBinding
+metadata:
+  name: asb
+subjects:
+- kind: ServiceAccount
+  name: asb
+  namespace: broker
+roleRef:
+  kind: ClusterRole
+  name: admin
+  apiGroup: rbac.authorization.k8s.io
+
+---
+apiVersion: rbac.authorization.k8s.io/v1beta1
+kind: ClusterRole
+metadata:
+  name: access-asb-role
+rules:
+- nonResourceURLs: ["/ansible-service-broker", "/ansible-service-broker/*"]
+  verbs: ["get", "post", "put", "patch", "delete"]
+
+
+---
+apiVersion: rbac.authorization.k8s.io/v1beta1
+kind: ClusterRoleBinding
+metadata:
+  name: ansibleservicebroker-client
+subjects:
+- kind: ServiceAccount
+  name: ansibleservicebroker-client
+  namespace: broker
+roleRef:
+  kind: ClusterRole
+  name: access-asb-role
+  apiGroup: rbac.authorization.k8s.io

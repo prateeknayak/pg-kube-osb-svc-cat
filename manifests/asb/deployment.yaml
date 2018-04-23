@@ -1,0 +1,55 @@
+---
+apiVersion: extensions/v1beta1
+kind: Deployment
+metadata:
+  name: asb
+  namespace: broker
+  labels:
+    app: ansible-service-broker
+    service: asb
+spec:
+  strategy:
+    type: Recreate
+  replicas: 1
+  template:
+    metadata:
+      labels:
+        app: ansible-service-broker
+        service: asb
+    spec:
+      serviceAccount: asb
+      restartPolicy: Always
+      containers:
+        - image: "ansibleplaybookbundle/origin-ansible-service-broker:latest"
+          name: asb
+          imagePullPolicy: IfNotPresent
+          volumeMounts:
+            - name: config-volume
+              mountPath: /etc/ansible-service-broker
+            - name: asb-tls
+              mountPath: /etc/tls/private
+            - name: asb-auth-volume
+              mountPath: /var/run/asb-auth
+          ports:
+            - containerPort: 1338
+              protocol: TCP
+          env:
+          - name: BROKER_CONFIG
+            value: "/etc/ansible-service-broker/config.yaml"
+          - name: INSECURE
+            value: "true"
+          resources: {}
+          terminationMessagePath: /tmp/termination-log
+      volumes:
+        - name: config-volume
+          configMap:
+            name: broker-config
+            items:
+            - key: broker-config
+              path: config.yaml
+        - name: asb-tls
+          secret:
+            secretName: asb-tls
+        - name: asb-auth-volume
+          secret:
+            secretName: asb-auth-secret
